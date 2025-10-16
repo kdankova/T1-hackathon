@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Support Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            background: #f5f5f5;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        
+        .panel {
+            max-width: 420px;
+            margin: 0 auto;
+            padding: 1rem;
+            background: white;
+            height: 100%;
+        }
+        
+        .header {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #1f77b4;
+        }
+        
+        .section {
+            margin-bottom: 1rem;
+        }
+        
+        label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.3rem;
+            color: #333;
+        }
+        
+        textarea, input[type="text"] {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 13px;
+            resize: vertical;
+        }
+        
+        textarea:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: #1f77b4;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        
+        button {
+            flex: 1;
+            padding: 0.6rem;
+            border: none;
+            border-radius: 4px;
+            font-weight: 500;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        
+        button:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+        
+        .btn-primary {
+            background: #1f77b4;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .draft-answer {
+            background: #f8f9fa;
+            padding: 0.8rem;
+            border-radius: 4px;
+            border-left: 3px solid #1f77b4;
+            margin: 0.5rem 0;
+            line-height: 1.5;
+        }
+        
+        .meta-info {
+            background: #e8eaf6;
+            padding: 0.5rem;
+            border-radius: 4px;
+            font-size: 12px;
+            margin: 0.3rem 0;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 1rem;
+            color: #666;
+        }
+        
+        .status {
+            padding: 0.5rem;
+            border-radius: 4px;
+            margin: 0.5rem 0;
+            text-align: center;
+            font-size: 13px;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .alternatives {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        
+        .alternative-item {
+            background: #fff9e6;
+            padding: 0.5rem;
+            margin: 0.3rem 0;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="panel">
+        <div class="header">🎯 RAG Support</div>
+        
+        <div class="section">
+            <label for="question">Вопрос клиента:</label>
+            <textarea id="question" rows="3" placeholder="Введите или вставьте вопрос клиента..."></textarea>
+            <div class="button-group">
+                <button class="btn-primary" onclick="findAnswer()">🔍 Найти ответ</button>
+                <button class="btn-secondary" onclick="clearAll()">🗑️ Очистить</button>
+            </div>
+        </div>
+        
+        <div id="status"></div>
+        
+        <div id="answer-section" style="display: none;">
+            <div class="section">
+                <label for="answer">Ответ для клиента:</label>
+                <textarea id="answer" rows="6"></textarea>
+                <div class="button-group">
+                    <button class="btn-secondary" onclick="revertAnswer()">🔄 Оригинал</button>
+                    <button class="btn-secondary" onclick="copyAnswer()">📋 Копировать</button>
+                    <button class="btn-success" onclick="sendFeedback()">📤 Feedback</button>
+                </div>
+            </div>
+            
+            <div class="section">
+                <label>Альтернативы:</label>
+                <div id="alternatives" class="alternatives"></div>
+            </div>
+            
+            <div class="section">
+                <label>Метаданные:</label>
+                <div id="metadata"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE_URL = 'http://localhost:8000';
+        let originalAnswer = '';
+        let currentQuestion = '';
+        let searchResults = null;
+        
+        function showStatus(message, type = 'success') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+            statusDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 3000);
+        }
+        
+        async function findAnswer() {
+            const question = document.getElementById('question').value.trim();
+            if (!question) {
+                showStatus('Введите вопрос', 'error');
+                return;
+            }
+            
+            showStatus('Поиск ответа...', 'success');
+            currentQuestion = question;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/search`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({query: question, top_k: 3})
+                });
+                
+                if (!response.ok) throw new Error('API error');
+                
+                const data = await response.json();
+                searchResults = data;
+                originalAnswer = data.draft || '';
+                
+                document.getElementById('answer').value = originalAnswer;
+                document.getElementById('answer-section').style.display = 'block';
+                
+                displayAlternatives(data.alternatives || []);
+                displayMetadata(data.results_meta || []);
+                
+                showStatus('✅ Ответ найден', 'success');
+            } catch (error) {
+                showStatus('❌ Ошибка поиска: ' + error.message, 'error');
+            }
+        }
+        
+        function displayAlternatives(alternatives) {
+            const container = document.getElementById('alternatives');
+            container.innerHTML = alternatives.map((alt, i) => 
+                `<div class="alternative-item"><strong>Вариант ${i + 1}:</strong><br>${alt}</div>`
+            ).join('');
+        }
+        
+        function displayMetadata(metadata) {
+            const container = document.getElementById('metadata');
+            if (!metadata || metadata.length === 0) {
+                container.innerHTML = '<div class="meta-info">Нет метаданных</div>';
+                return;
+            }
+            
+            container.innerHTML = metadata.slice(0, 1).map(meta => {
+                const tax = meta.taxonomy || {};
+                return `
+                    <div class="meta-info">
+                        <strong>Категория:</strong> ${tax.category || 'N/A'}<br>
+                        <strong>Подкатегория:</strong> ${tax.subcategory || 'N/A'}<br>
+                        <strong>Топик:</strong> ${tax.subtopic || 'N/A'}
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function revertAnswer() {
+            document.getElementById('answer').value = originalAnswer;
+            showStatus('Ответ восстановлен', 'success');
+        }
+        
+        function copyAnswer() {
+            const answer = document.getElementById('answer').value;
+            navigator.clipboard.writeText(answer).then(() => {
+                showStatus('📋 Скопировано', 'success');
+            });
+        }
+        
+        async function sendFeedback() {
+            const editedAnswer = document.getElementById('answer').value;
+            
+            if (editedAnswer === originalAnswer) {
+                showStatus('Ответ не изменён', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/feedback`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        original_question: currentQuestion,
+                        original_answer: originalAnswer,
+                        edited_answer: editedAnswer,
+                        note: ''
+                    })
+                });
+                
+                if (!response.ok) throw new Error('API error');
+                
+                showStatus('✅ Feedback отправлен', 'success');
+            } catch (error) {
+                showStatus('❌ Ошибка отправки: ' + error.message, 'error');
+            }
+        }
+        
+        function clearAll() {
+            document.getElementById('question').value = '';
+            document.getElementById('answer').value = '';
+            document.getElementById('answer-section').style.display = 'none';
+            currentQuestion = '';
+            originalAnswer = '';
+            searchResults = null;
+        }
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                clearAll();
+            }
+            
+            const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+            const modKey = isMac ? e.metaKey : e.ctrlKey;
+            
+            if (modKey && e.key === 'Enter') {
+                e.preventDefault();
+                copyAnswer();
+            }
+        });
+        
+        const selectedText = window.parent.getSelection().toString();
+        if (selectedText && selectedText.length > 0) {
+            document.getElementById('question').value = selectedText;
+        }
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  operator:
+    build: .
+    container_name: rag-operator-ui
+    ports:
+      - "8501:8501"
+    environment:
+      - API_BASE_URL=http://backend:8000
+    command: streamlit run operator_app.py --server.port 8501 --server.address 0.0.0.0
+    restart: unless-stopped
+
+  moderator:
+    build: .
+    container_name: rag-moderator-ui
+    ports:
+      - "8502:8502"
+    environment:
+      - API_BASE_URL=http://backend:8000
+    command: streamlit run moderator_app.py --server.port 8502 --server.address 0.0.0.0
+    restart: unless-stopped
+

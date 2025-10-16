@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест Bookmarklet - RAG Support</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: #f5f5f5;
+        }
+        
+        .card {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #1f77b4;
+            margin-top: 0;
+        }
+        
+        h2 {
+            color: #333;
+            border-bottom: 2px solid #1f77b4;
+            padding-bottom: 0.5rem;
+        }
+        
+        .instruction {
+            background: #e8f5e9;
+            padding: 1rem;
+            border-left: 4px solid #4caf50;
+            margin: 1rem 0;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            padding: 1rem;
+            border-left: 4px solid #ffc107;
+            margin: 1rem 0;
+        }
+        
+        .code {
+            background: #263238;
+            color: #aed581;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            margin: 1rem 0;
+        }
+        
+        .button {
+            background: #1f77b4;
+            color: white;
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 15px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 0.5rem 0.5rem 0.5rem 0;
+        }
+        
+        .button:hover {
+            background: #155a8a;
+        }
+        
+        .ticket {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+        
+        .highlight {
+            background: #ffeb3b;
+            padding: 2px 4px;
+        }
+        
+        .key {
+            background: #e0e0e0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 0.9em;
+            border: 1px solid #bdbdbd;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🧪 Тестирование RAG Support Bookmarklet</h1>
+        <p>Эта страница для тестирования встраиваемой панели RAG Support.</p>
+    </div>
+
+    <div class="card">
+        <h2>📋 Инструкция по установке</h2>
+        
+        <div class="instruction">
+            <strong>Шаг 1:</strong> Запустите embed сервер в терминале:
+            <div class="code">cd /Users/kdankova/EDU/hack-rag/T1-hackathon/frontend<br>python -m http.server 8080</div>
+        </div>
+
+        <div class="instruction">
+            <strong>Шаг 2:</strong> Создайте bookmarklet в Arc:
+            <ol>
+                <li>Нажмите <span class="key">Cmd</span> + <span class="key">D</span></li>
+                <li>Назовите закладку "RAG Support"</li>
+                <li>В поле URL вставьте код ниже:</li>
+            </ol>
+            <div class="code">javascript:(function(){var s=document.createElement('script');s.src='http://localhost:8080/embed.js';document.body.appendChild(s);})();</div>
+        </div>
+
+        <div class="instruction">
+            <strong>Шаг 3:</strong> Нажмите на закладку "RAG Support" и справа появится панель!
+        </div>
+
+        <div class="warning">
+            <strong>⚠️ Важно для Mac:</strong> Используйте <span class="key">Cmd</span> вместо Ctrl!
+            <ul>
+                <li><span class="key">Cmd</span> + <span class="key">Shift</span> + <span class="key">K</span> - скрыть/показать панель</li>
+                <li><span class="key">Cmd</span> + <span class="key">Enter</span> - копировать ответ</li>
+                <li><span class="key">Esc</span> - очистить форму</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🎯 Быстрый тест</h2>
+        <p>Для быстрого теста нажмите кнопку ниже (работает только если сервер запущен):</p>
+        <button class="button" onclick="injectPanel()">🚀 Загрузить RAG панель сейчас</button>
+        <button class="button" onclick="togglePanel()" style="background: #6c757d;">👁️ Скрыть/Показать панель</button>
+    </div>
+
+    <div class="card">
+        <h2>💬 Имитация тикет-системы</h2>
+        <p>Выделите любой вопрос ниже, затем активируйте панель RAG:</p>
+        
+        <div class="ticket">
+            <strong>Тикет #12345</strong> - Новый клиент
+            <hr style="margin: 1rem 0;">
+            <p><strong>От:</strong> ivanov@example.com</p>
+            <p><strong>Тема:</strong> Регистрация онлайн</p>
+            <p><strong>Сообщение:</strong></p>
+            <p class="highlight">Как стать клиентом банка онлайн?</p>
+        </div>
+
+        <div class="ticket">
+            <strong>Тикет #12346</strong> - Проблема с доступом
+            <hr style="margin: 1rem 0;">
+            <p><strong>От:</strong> petrov@example.com</p>
+            <p><strong>Тема:</strong> Не могу войти</p>
+            <p><strong>Сообщение:</strong></p>
+            <p class="highlight">Как восстановить пароль от интернет-банка?</p>
+        </div>
+
+        <div class="ticket">
+            <strong>Тикет #12347</strong> - Первый вход
+            <hr style="margin: 1rem 0;">
+            <p><strong>От:</strong> sidorova@example.com</p>
+            <p><strong>Тема:</strong> Временный пароль</p>
+            <p><strong>Сообщение:</strong></p>
+            <p class="highlight">Как сменить временный пароль при первом входе?</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>✅ Что должно произойти</h2>
+        <ol>
+            <li>После активации bookmarklet справа появится сайд-панель (ширина ~420px)</li>
+            <li>Если вы выделили текст - он автоматически вставится в поле вопроса</li>
+            <li>Нажмите "🔍 Найти ответ" в панели</li>
+            <li>Получите ответ от RAG системы</li>
+            <li>Можете редактировать ответ</li>
+            <li>Нажмите <span class="key">Cmd</span> + <span class="key">Shift</span> + <span class="key">K</span> чтобы скрыть панель</li>
+            <li>Нажмите снова чтобы показать</li>
+        </ol>
+    </div>
+
+    <div class="card">
+        <h2>🐛 Траблшутинг</h2>
+        
+        <h3>Панель не появляется:</h3>
+        <ul>
+            <li>Проверьте что сервер запущен: <code>python -m http.server 8080</code></li>
+            <li>Откройте консоль браузера (F12) и посмотрите ошибки</li>
+            <li>Попробуйте перезагрузить страницу</li>
+        </ul>
+
+        <h3>API не отвечает:</h3>
+        <ul>
+            <li>Убедитесь что backend запущен на порту 8000</li>
+            <li>Проверьте: <code>curl http://localhost:8000/health</code></li>
+        </ul>
+
+        <h3>Горячие клавиши не работают:</h3>
+        <ul>
+            <li>В браузере Arc может быть конфликт с встроенными горячими клавишами</li>
+            <li>Попробуйте в обычном Chrome/Safari</li>
+            <li>Используйте именно <span class="key">Cmd</span> на Mac, не <span class="key">Ctrl</span></li>
+        </ul>
+    </div>
+
+    <script>
+        let panelInjected = false;
+        
+        function injectPanel() {
+            if (panelInjected) {
+                alert('Панель уже загружена! Используйте кнопку "Скрыть/Показать" или Cmd+Shift+K');
+                return;
+            }
+            
+            const script = document.createElement('script');
+            script.src = 'http://localhost:8080/embed.js';
+            script.onerror = function() {
+                alert('❌ Ошибка загрузки!\n\nУбедитесь что сервер запущен:\npython -m http.server 8080');
+            };
+            script.onload = function() {
+                panelInjected = true;
+                alert('✅ Панель загружена!\n\nИспользуйте:\nCmd+Shift+K - скрыть/показать\nCmd+Enter - копировать');
+            };
+            document.body.appendChild(script);
+        }
+        
+        function togglePanel() {
+            if (!panelInjected) {
+                alert('Сначала загрузите панель кнопкой "Загрузить RAG панель"');
+                return;
+            }
+            
+            const event = new KeyboardEvent('keydown', {
+                key: 'k',
+                metaKey: true,
+                shiftKey: true,
+                bubbles: true
+            });
+            document.dispatchEvent(event);
+        }
+    </script>
+</body>
+</html>
+
