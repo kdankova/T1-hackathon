@@ -16,7 +16,29 @@ from app.models import (
 from app.database import init_db, get_session, FeedbackItem, QAQueue, generate_token
 from app.rag_service import rag_service
 
-app = FastAPI(title="RAG Support API", version="1.0.0")
+app = FastAPI(
+    title="RAG Support API", 
+    version="2.0.0",
+    description="""
+## RAG система поддержки для банка ВТБ (Беларусь)
+
+Система для автоматического поиска ответов на вопросы клиентов с механизмом непрерывного обучения.
+
+### Возможности:
+- Поиск по базе знаний (FAISS + BM25)
+- Отправка feedback от операторов
+- Модерация правок
+- Автоматическое обновление базы знаний
+
+### Компоненты:
+- **Backend API** (этот сервис)
+- **Operator UI** - интерфейс оператора
+- **Moderator UI** - интерфейс модератора
+    """,
+    contact={
+        "name": "T1 Hackathon Team",
+    },
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -33,13 +55,28 @@ async def startup_event():
     print("Database initialized. RAG will initialize on first request.")
 
 
-@app.get("/")
+@app.get("/", tags=["Health"])
 async def root():
+    """
+    Healthcheck endpoint
+    
+    Возвращает статус работы API
+    """
     return {"status": "ok", "message": "RAG Support API is running"}
 
 
-@app.post("/api/search", response_model=SearchResponse)
+@app.post("/api/search", response_model=SearchResponse, tags=["Search"])
 async def search_answer(request: SearchRequest):
+    """
+    Поиск ответа в базе знаний
+    
+    Использует ensemble подход: векторный поиск (FAISS + BGE-M3) + лексический поиск (BM25)
+    
+    - **query**: вопрос клиента
+    - **top_k**: количество результатов (по умолчанию 3)
+    
+    Возвращает шаблонные ответы напрямую из базы знаний
+    """
     try:
         if rag_service.vector_store is None:
             print("Initializing RAG service...")
@@ -50,11 +87,24 @@ async def search_answer(request: SearchRequest):
         raise HTTPException(status_code=500, detail=f"Ошибка поиска: {str(e)}")
 
 
-@app.post("/api/feedback", response_model=FeedbackResponse)
+@app.post("/api/feedback", response_model=FeedbackResponse, tags=["Feedback"])
 async def send_feedback(
     request: FeedbackRequest,
     session: AsyncSession = Depends(get_session)
 ):
+    """
+    Отправка feedback от оператора
+    
+    Оператор может пожаловаться на неточный ответ и предложить исправление.
+    Правка сохраняется со статусом 'pending' и ждет модерации.
+    
+    - **original_question**: исходный вопрос клиента
+    - **old_answer**: текущий ответ из базы
+    - **edited_answer**: исправленный ответ
+    - **note**: комментарий оператора (опционально)
+    
+    Возвращает уникальный токен для отслеживания
+    """
     try:
         token = generate_token()
         
@@ -78,8 +128,15 @@ async def send_feedback(
 
 
 
-@app.get("/api/moderation/pending", response_model=PendingListResponse)
+@app.get("/api/moderation/pending", response_model=PendingListResponse, tags=["Moderation"])
 async def get_pending_feedback(session: AsyncSession = Depends(get_session)):
+    """
+    Список правок на модерации
+    
+    Возвращает все правки со статусом 'pending', которые ожидают решения модератора.
+    
+    Используется в Moderator UI для отображения очереди модерации.
+    """
     try:
         feedback_result = await session.execute(
             select(FeedbackItem).where(FeedbackItem.status == "pending").order_by(FeedbackItem.created_at)
@@ -121,11 +178,28 @@ async def get_pending_feedback(session: AsyncSession = Depends(get_session)):
         raise HTTPException(status_code=500, detail=f"Ошибка получения списка: {str(e)}")
 
 
-@app.post("/api/moderation/resolve", response_model=ResolveResponse)
+@app.post("/api/moderation/resolve", response_model=ResolveResponse, tags=["Moderation"])
 async def resolve_feedback(
     request: ResolveRequest,
     session: AsyncSession = Depends(get_session)
 ):
+    """
+    Принять или отклонить правку (модератор)
+    
+    При **approve**:
+    - База знаний обновляется в памяти
+    - Индексы FAISS + BM25 пересоздаются
+    - CSV файл сохраняется на диск
+    - Статус правки меняется на 'approved'
+    
+    При **reject**:
+    - Правка отклоняется
+    - Статус правки меняется на 'rejected'
+    - База знаний НЕ обновляется
+    
+    - **internal_token**: токен правки из списка pending
+    - **action**: "approve" или "reject"
+    """
     try:
         result = await session.execute(
             select(FeedbackItem).where(FeedbackItem.internal_token == request.internal_token)
@@ -165,8 +239,18 @@ async def resolve_feedback(
         raise HTTPException(status_code=500, detail=f"Ошибка обработки: {str(e)}")
 
 
-@app.get("/api/moderation/stats", response_model=Stats)
+@app.get("/api/moderation/stats", response_model=Stats, tags=["Moderation"])
 async def get_moderation_stats(session: AsyncSession = Depends(get_session)):
+    """
+    Статистика модерации
+    
+    Возвращает:
+    - Количество правок на модерации (pending)
+    - Количество принятых правок (approved)
+    - Количество отклоненных правок (rejected)
+    
+    Используется в Moderator UI для отображения метрик
+    """
     try:
         total_pending = await session.scalar(
             select(func.count()).select_from(FeedbackItem).where(FeedbackItem.status == "pending")

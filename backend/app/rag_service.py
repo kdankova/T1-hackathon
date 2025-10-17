@@ -167,6 +167,21 @@ class RAGService:
             print(f"Ошибка генерации ответа: {e}")
             return contexts[0] if contexts else "Произошла ошибка при генерации ответа."
     
+    async def save_knowledge_base(self):
+        csv_path = "/home/kate/T1-hackathon/backend/data/knowledge_base_augmented2.csv"
+        print(f"Сохранение базы знаний в {csv_path}...")
+        
+        save_df = self.df.rename(columns={
+            'category': 'Основная категория',
+            'subcategory': 'Подкатегория',
+            'question': 'Пример вопроса',
+            'answer': 'Шаблонный ответ',
+            'target_group': 'Целевая аудитория'
+        })
+        
+        save_df.to_csv(csv_path, index=False)
+        print("База знаний сохранена!")
+    
     async def rebuild_index_for_item(self, question: str, new_answer: str, taxonomy: Dict):
         print(f"Обновление индекса для вопроса: {question}")
         
@@ -198,6 +213,8 @@ class RAGService:
             retrievers=[self.bm25_retriever, retriever],
             weights=[settings.BM25_WEIGHT, settings.VECTOR_WEIGHT]
         )
+        
+        await self.save_knowledge_base()
         
         print("Индекс обновлён!")
 

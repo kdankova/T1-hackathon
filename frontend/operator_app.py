@@ -24,16 +24,18 @@ def search_api(query, top_k=3):
         st.error(f"Ошибка API: {str(e)}")
         return None
 
-def send_feedback(original_question, original_answer, edited_answer, note):
+def send_feedback(original_question, old_answer, edited_answer, note):
     try:
+        import time
         response = requests.post(
-            f"{API_BASE_URL}/api/feedback",
+            f"{API_BASE_URL}/api/feedback?_t={int(time.time())}",
             json={
                 "original_question": original_question,
-                "original_answer": original_answer,
+                "old_answer": old_answer,
                 "edited_answer": edited_answer,
                 "note": note
             },
+            headers={"Cache-Control": "no-cache"},
             timeout=API_TIMEOUT
         )
         response.raise_for_status()
@@ -55,21 +57,62 @@ with col1:
                 result = search_api(query)
                 
                 if result:
-                    st.success("✅ Найден ответ!")
+                    st.session_state['last_result'] = result
+                    st.session_state['last_query'] = query
+    
+    if 'last_result' in st.session_state and st.session_state['last_result']:
+        result = st.session_state['last_result']
+        query = st.session_state['last_query']
+        
+        st.success("✅ Найден ответ!")
+        
+        st.subheader("📝 Предложенный ответ:")
+        st.write(result["draft"])
+        
+        st.subheader("📚 Альтернативные варианты:")
+        for i, alt in enumerate(result["alternatives"], 1):
+            st.write(f"{i}. {alt}")
+        
+        st.subheader("📋 Метаданные:")
+        for i, meta in enumerate(result["results_meta"], 1):
+            with st.expander(f"Результат {i}: {meta['question']}"):
+                st.write(f"**Категория:** {meta['taxonomy']['category']}")
+                st.write(f"**Подкатегория:** {meta['taxonomy']['subcategory']}")
+                st.write(f"**Ответ:** {meta['answer']}")
+        
+        st.divider()
+        st.subheader("⚠️ Пожаловаться на ответ")
+        
+        with st.form("feedback_form"):
+            st.write("**Исходный вопрос:**")
+            st.text(query)
+            
+            st.write("**Текущий ответ:**")
+            st.text_area("Старый ответ", value=result["draft"], disabled=True, key="old_answer_display")
+            
+            corrected_answer = st.text_area(
+                "Правильный ответ:",
+                placeholder="Введите исправленный ответ здесь...",
+                height=150
+            )
+            
+            submitted = st.form_submit_button("Отправить на модерацию")
+            
+            if submitted:
+                if not corrected_answer:
+                    st.error("Пожалуйста, введите исправленный ответ")
+                else:
+                    with st.spinner("Отправка на модерацию..."):
+                        feedback_result = send_feedback(
+                            original_question=query,
+                            old_answer=result["draft"],
+                            edited_answer=corrected_answer,
+                            note=None
+                        )
                     
-                    st.subheader("📝 Предложенный ответ:")
-                    st.write(result["draft"])
-                    
-                    st.subheader("📚 Альтернативные варианты:")
-                    for i, alt in enumerate(result["alternatives"], 1):
-                        st.write(f"{i}. {alt}")
-                    
-                    st.subheader("📋 Метаданные:")
-                    for i, meta in enumerate(result["results_meta"], 1):
-                        with st.expander(f"Результат {i}: {meta['question']}"):
-                            st.write(f"**Категория:** {meta['taxonomy']['category']}")
-                            st.write(f"**Подкатегория:** {meta['taxonomy']['subcategory']}")
-                            st.write(f"**Ответ:** {meta['answer']}")
+                    if feedback_result:
+                        st.success("✅ Жалоба отправлена на модерацию!")
+                        st.balloons()
 
 with col2:
     st.header("ℹ️ Информация")
@@ -78,7 +121,7 @@ with col2:
     1. Введите вопрос клиента
     2. Нажмите "Поиск"
     3. Используйте найденный ответ для помощи клиенту
-    4. Просмотрите альтернативные варианты при необходимости
+    4. Если ответ неточный - отправьте правку на модерацию
     """)
     
     st.header("🔗 API статус")

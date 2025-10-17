@@ -44,3 +44,4 @@ class BGEM3Embeddings(Embeddings):
     def embed_query(self, text):
         return self._embed([text])[0]
 
+

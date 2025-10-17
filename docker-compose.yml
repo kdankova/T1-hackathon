@@ -36,8 +36,25 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+    command: ["python3.13", "-m", "streamlit", "run", "operator_app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+
+  moderator:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: rag-moderator
+    ports:
+      - "8502:8502"
+    environment:
+      - API_BASE_URL=http://backend:8000
+      - API_TIMEOUT=120
+    depends_on:
+      - backend
+    restart: unless-stopped
+    command: ["python3.13", "-m", "streamlit", "run", "moderator_app.py", "--server.port=8502", "--server.address=0.0.0.0"]
 
 networks:
   default:
     name: rag-network
+
 

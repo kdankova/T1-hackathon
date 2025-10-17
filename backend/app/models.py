@@ -16,7 +16,7 @@ class SearchResponse(BaseModel):
 
 class FeedbackRequest(BaseModel):
     original_question: str
-    original_answer: str
+    old_answer: str
     edited_answer: str
     note: Optional[str] = None
 
@@ -72,4 +72,5 @@ class Stats(BaseModel):
     avg_response_time: str
     category_coverage: Optional[Dict] = None
     operator_activity: Optional[Dict] = None
+
 

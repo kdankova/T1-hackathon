@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-API_BASE_URL = os.getenv("API_BASE_URL", "https://begins-mrna-safe-effectively.trycloudflare.com")
+API_BASE_URL = os.getenv("API_BASE_URL", "https://gpl-sorted-usb-candidates.trycloudflare.com")
 
 API_TIMEOUT = int(os.getenv("API_TIMEOUT", "120"))
 
